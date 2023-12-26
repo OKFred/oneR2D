@@ -7,4 +7,4 @@
 ## 运行方法
 
 ### 面向对象的方法
-`cd $HOME/oneDebian && chmod +x menu.sh && ./menu.sh`
+`cd $HOME/oneR2D && chmod +x menu.sh && ./menu.sh`
