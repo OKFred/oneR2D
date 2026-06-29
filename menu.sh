@@ -7,7 +7,6 @@
 #⚠️import--需要引入包含函数的文件
 source ./components/the_usb_mount.sh
 source ./components/block_miwifi_api.sh
-source ./components/extra.blocks.sh
 
 menu_title() {
   #clear
@@ -29,8 +28,8 @@ main() {
     echo "01. 配置SSH访问"
     echo "02. 安装基础工具[米盒子]等"
     echo "03. 挂载U盘"
-    echo "04. 屏蔽小米路由API"
-    echo "05. 补充额外iptables规则"
+    echo "04. 屏蔽小米路由与额外规则"
+    echo "05. 打印导出的iptables规则"
     echo "09. 关于"
     echo "00. 退出"
     echo
@@ -40,8 +39,8 @@ main() {
     01 | 1) echo "不然这脚本是怎么运行的？" ;;
     02 | 2) echo "自己网上搜资源" ;;
     03 | 3) the_usb_mount ;;
-    04 | 4) block_miwifi_api ;;
-    05 | 5) extra_blocks ;;
+    04 | 4) block_miwifi_api && menu_back ;;
+    05 | 5) show_block_rules && menu_back ;;
     09 | 9) nano readme.md ;;
     00 | 0) exit 1 ;;
     u) echo "???" ;;

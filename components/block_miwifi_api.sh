@@ -1,7 +1,28 @@
 #!/bin/sh
-#@description: 屏蔽小米路由API上报
+#@description: 屏蔽小米路由上报与额外规则整合版
 #@author: Fred
-#@datetime: 2026-06-29
+#@datetime: 2026-06-30
+
+# 解析指定域名的 IPv4 地址
+_resolve_domain_ips() {
+  local domain="$1"
+  nslookup "$domain" 2>/dev/null | awk '/Address/ {print $NF}' | grep -v '127.0.0.1' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | tr '\n' ' '
+}
+
+# 解析并获取所有需要屏蔽的 IP（包括 api.miwifi.com, stun.miwifi.com 和 消息推送 IP）
+_get_all_target_ips() {
+  local api_ips stun_ips push_ips
+  
+  # 解析 api.miwifi.com 与 stun.miwifi.com
+  api_ips=$(_resolve_domain_ips "api.miwifi.com")
+  stun_ips=$(_resolve_domain_ips "stun.miwifi.com")
+  
+  # 消息推送连接 IP (对应 6501/messagingagent 建立的连接)
+  push_ips="120.133.85.220"
+  
+  # 合并、去重
+  echo "$api_ips $stun_ips $push_ips" | tr ' ' '\n' | sort -u | tr '\n' ' '
+}
 
 block_miwifi_api() {
   local dryrun=0
@@ -10,31 +31,26 @@ block_miwifi_api() {
     echo "=== DRYRUN 模式运行：仅显示将要执行的命令，不会修改 iptables ==="
   fi
 
-  echo "开始配置 iptables 屏蔽 api.miwifi.com..."
+  echo "开始配置 iptables 屏蔽小米路由上报及探测服务..."
   
-  # 动态解析域名
-  echo "正在解析 api.miwifi.com..."
   local ips
-  ips=$(nslookup api.miwifi.com 2>/dev/null | awk '/Address/ {print $NF}' | grep -v '127.0.0.1' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+  ips=$(_get_all_target_ips)
   
-  if [ -z "$ips" ]; then
-    echo "错误：域名解析失败或未返回有效 IPv4 地址，无法配置 iptables。"
+  if [ -z "$(echo "$ips" | tr -d ' ')" ]; then
+    echo "错误：未能解析到任何有效 IP 地址，配置中止。"
     return 1
   fi
 
-  # 去重处理
-  ips=$(echo "$ips" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-  echo "获取到待处理的 IP 列表: $ips"
+  echo "获取到待屏蔽的完整 IP 列表: $ips"
 
   for ip in $ips; do
     [ -z "$ip" ] && continue
     echo "----------------------------------------"
     echo "处理 IP: $ip"
     
-    # 检查是否已存在相关的 iptables 规则
+    # 检查并清理已有规则
     if iptables -L OUTPUT -n 2>/dev/null | grep -F -q "$ip"; then
       echo "检测到 IP $ip 已有 iptables 规则，准备清理..."
-      # 循环删除所有重复的规则，防止多次添加产生冗余
       if [ "$dryrun" -eq 1 ]; then
         echo "[DRYRUN] 将执行：循环删除该 IP 的 iptables 规则"
       else
@@ -63,10 +79,40 @@ block_miwifi_api() {
   if [ "$dryrun" -eq 1 ]; then
     echo "[DRYRUN] 模式下，当前规则未发生改变："
   fi
-  iptables -L OUTPUT -n 2>/dev/null | grep -E "REJECT" || echo "暂无匹配的 REJECT 规则（可能未以 root 权限运行或尚无规则）。"
+  iptables -L OUTPUT -n 2>/dev/null | grep -E "REJECT" || echo "暂无匹配的 REJECT 规则。"
+}
+
+# 打印生成的 iptables 规则，方便用户复制到 /etc/rc.local
+show_block_rules() {
+  echo "=================================================="
+  echo " 提示：解析域名并生成适用于 /etc/rc.local 的命令："
+  echo "=================================================="
+  
+  local api_ips stun_ips
+  
+  echo "# 1. 屏蔽 api.miwifi.com"
+  api_ips=$(_resolve_domain_ips "api.miwifi.com")
+  for ip in $api_ips; do
+    [ -n "$ip" ] && echo "iptables -I OUTPUT -d $ip -j REJECT"
+  done
+  
+  echo "# 2. 屏蔽 stun.miwifi.com"
+  stun_ips=$(_resolve_domain_ips "stun.miwifi.com")
+  for ip in $stun_ips; do
+    [ -n "$ip" ] && echo "iptables -I OUTPUT -d $ip -j REJECT"
+  done
+  
+  echo "# 3. 屏蔽消息推送长连接 (messagingagent)"
+  echo "iptables -I OUTPUT -d 120.133.85.220 -j REJECT"
+  
+  echo "=================================================="
 }
 
 # 如果是直接运行脚本而不是 source 引入，则调用函数
 if [ "${0##*/}" = "block_miwifi_api.sh" ]; then
-  block_miwifi_api "$@"
+  if [ "$1" = "show" ] || [ "$1" = "list" ] || [ "$1" = "rules" ]; then
+    show_block_rules
+  else
+    block_miwifi_api "$@"
+  fi
 fi
