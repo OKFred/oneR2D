@@ -1,11 +1,12 @@
 #!/bin/sh
 #@description: 菜单化显示工具箱列表
-#@author: Fred Zhang Qi
+#@author: Fred
 #@datetime: 2023-12-26
 
 #文件依赖
 #⚠️import--需要引入包含函数的文件
 source ./components/the_usb_mount.sh
+source ./components/block_miwifi_api.sh
 
 menu_title() {
   #clear
@@ -27,6 +28,7 @@ main() {
     echo "01. 配置SSH访问"
     echo "02. 安装基础工具[米盒子]等"
     echo "03. 挂载U盘"
+    echo "04. 屏蔽小米路由API"
     echo "08. 更多"
     echo "09. 关于"
     echo "00. 退出"
@@ -37,6 +39,7 @@ main() {
     01 | 1) echo "不然这脚本是怎么运行的？" ;;
     02 | 2) echo "自己网上搜资源" ;;
     03 | 3) the_usb_mount ;;
+    04 | 4) block_miwifi_api ;;
     08 | 8) echo '敬请期待' ;;
     09 | 9) nano readme.md ;;
     00 | 0) exit 1 ;;

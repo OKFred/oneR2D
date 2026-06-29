@@ -1,6 +1,6 @@
 #!/bin/sh
 #@description:  U盘挂载：
-#@author: Fred Zhang Qi
+#@author: Fred
 #@datetime: 2023-12-26
 
 #dependencies--文件依赖
