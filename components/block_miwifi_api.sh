@@ -12,23 +12,19 @@ block_miwifi_api() {
 
   echo "开始配置 iptables 屏蔽 api.miwifi.com..."
   
-  # 待屏蔽的 IP 列表，包含 todo.md 中的静态 IP 及样例 IP
-  local static_ips="106.120.178.57 220.181.104.239 220.181.106.182 106.38.242.1 203.0.113.10"
-  local ips=""
-
-  # 尝试动态解析域名
+  # 动态解析域名
   echo "正在解析 api.miwifi.com..."
-  local dynamic_ips
-  dynamic_ips=$(nslookup api.miwifi.com 2>/dev/null | awk '/Address/ {print $NF}' | grep -v '127.0.0.1' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+  local ips
+  ips=$(nslookup api.miwifi.com 2>/dev/null | awk '/Address/ {print $NF}' | grep -v '127.0.0.1' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
   
-  if [ -n "$dynamic_ips" ]; then
-    # 合并动态解析 of IP，并去重
-    ips=$(echo "$static_ips $dynamic_ips" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-    echo "获取到动态 IP，合并后待处理的 IP 列表: $ips"
-  else
-    ips="$static_ips"
-    echo "域名解析失败或未返回有效IPv4，使用静态备用 IP 列表: $ips"
+  if [ -z "$ips" ]; then
+    echo "错误：域名解析失败或未返回有效 IPv4 地址，无法配置 iptables。"
+    return 1
   fi
+
+  # 去重处理
+  ips=$(echo "$ips" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+  echo "获取到待处理的 IP 列表: $ips"
 
   for ip in $ips; do
     [ -z "$ip" ] && continue
