@@ -4,7 +4,6 @@
 #@datetime: 2023-12-26
 
 #dependencies--文件依赖
-# none
 my_usb_mount_path="/userdisk/data/TDDOWNLOAD/usb"
 my_usb_mount_script=$my_usb_mount_path"/mountUSBtoSSD"
 
