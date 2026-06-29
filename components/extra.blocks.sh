@@ -7,5 +7,6 @@ extra_blocks() {
   iptables -I OUTPUT -d "220.181.104.239" -j REJECT
   iptables -I OUTPUT -d "106.120.178.57" -j REJECT
   iptables -I OUTPUT -d "220.181.106.182" -j REJECT
-  iptables -L OUTPUT -d "106.38.242.1" -j REJECT
+  iptables -I OUTPUT -d "106.38.242.1" -j REJECT
+  iptables -I OUTPUT -d "111.206.174.3" -j REJECT
 }
