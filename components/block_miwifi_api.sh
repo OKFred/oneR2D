@@ -9,9 +9,9 @@ _resolve_domain_ips() {
   nslookup "$domain" 2>/dev/null | awk '/Address/ {print $NF}' | grep -v '127.0.0.1' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | tr '\n' ' '
 }
 
-# 解析并获取所有需要屏蔽的 IP（包括 api.miwifi.com, stun.miwifi.com 和 消息推送 IP）
+# 解析并获取所有需要屏蔽的 IP（包括 api.miwifi.com, stun.miwifi.com, 消息推送 IP 和 GitHub CDN IP）
 _get_all_target_ips() {
-  local api_ips stun_ips push_ips
+  local api_ips stun_ips push_ips github_ips
   
   # 解析 api.miwifi.com 与 stun.miwifi.com
   api_ips=$(_resolve_domain_ips "api.miwifi.com")
@@ -20,8 +20,11 @@ _get_all_target_ips() {
   # 消息推送连接 IP (对应 6501/messagingagent 建立的连接)
   push_ips="120.133.85.220"
   
+  # GitHub CDN 静态 IP (针对类似 cdn-185-199-110-133.github.com 等域名，其 IP 已经固定写在域名中，无需动态 DNS 解析)
+  github_ips="185.199.108.133 185.199.109.133 185.199.110.133 185.199.111.133"
+  
   # 合并、去重
-  echo "$api_ips $stun_ips $push_ips" | tr ' ' '\n' | sort -u | tr '\n' ' '
+  echo "$api_ips $stun_ips $push_ips $github_ips" | tr ' ' '\n' | sort -u | tr '\n' ' '
 }
 
 block_miwifi_api() {
@@ -88,8 +91,8 @@ show_block_rules() {
   echo " 提示：解析域名并生成适用于 /etc/rc.local 的命令："
   echo "=================================================="
   
-  local api_ips stun_ips
-  
+  local api_ips stun_ips github_ips
+
   echo "# 1. 屏蔽 api.miwifi.com"
   api_ips=$(_resolve_domain_ips "api.miwifi.com")
   for ip in $api_ips; do
@@ -104,6 +107,12 @@ show_block_rules() {
   
   echo "# 3. 屏蔽消息推送长连接 (messagingagent)"
   echo "iptables -I OUTPUT -d 120.133.85.220 -j REJECT"
+  
+  echo "# 4. 屏蔽 GitHub CDN 域名 (类似 cdn-185-199-110-133.github.com)"
+  github_ips="185.199.108.133 185.199.109.133 185.199.110.133 185.199.111.133"
+  for ip in $github_ips; do
+    [ -n "$ip" ] && echo "iptables -I OUTPUT -d $ip -j REJECT"
+  done
   
   echo "=================================================="
 }
